@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>书签检测器</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      width: 320px;
+      background: #ffffff;
+      color: #1a1a1a;
+    }
+
+    /* 顶部标题栏 */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .header-icon {
+      font-size: 18px;
+    }
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* 主内容区 */
+    .content {
+      padding: 16px;
+    }
+
+    /* 当前 URL 显示 */
+    .url-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .url-label {
+      font-size: 11px;
+      color: #999;
+      white-space: nowrap;
+      padding-top: 1px;
+    }
+
+    .url-text {
+      font-size: 11px;
+      color: #666;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    /* 状态卡片 */
+    .status-card {
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .status-card.saved {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .status-card.not-saved {
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+    }
+
+    .status-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: #22c55e;
+    }
+
+    .status-dot.gray {
+      background: #d1d5db;
+    }
+
+    .status-text {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status-text.green {
+      color: #16a34a;
+    }
+
+    .status-text.gray {
+      color: #6b7280;
+    }
+
+    /* 书签条目列表 */
+    .bookmark-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bookmark-item {
+      background: #ffffff;
+      border: 1px solid #d1fae5;
+      border-radius: 8px;
+      padding: 10px 12px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 书签条目顶部行：标题 + 删除按钮 */
+    .bookmark-item-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    /* 删除按钮 */
+    .btn-delete {
+      flex-shrink: 0;
+      background: none;
+      border: 1px solid #fca5a5;
+      border-radius: 5px;
+      color: #ef4444;
+      font-size: 11px;
+      padding: 2px 7px;
+      cursor: pointer;
+      line-height: 1.6;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-delete:hover {
+      background: #fef2f2;
+      border-color: #ef4444;
+    }
+
+    /* 确认对话框遮罩 */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    /* 确认对话框主体 */
+    .confirm-box {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 18px 16px;
+      width: 268px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .confirm-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+
+    .confirm-desc {
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 16px;
+      word-break: break-all;
+    }
+
+    .confirm-desc strong {
+      color: #374151;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn-cancel {
+      background: #f3f4f6;
+      border: none;
+      border-radius: 7px;
+      color: #374151;
+      font-size: 13px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-cancel:hover {
+      background: #e5e7eb;
+    }
+
+    .btn-confirm-delete {
+      background: #ef4444;
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-confirm-delete:hover {
+      background: #dc2626;
+    }
+
+    .bookmark-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bookmark-path {
+      font-size: 11px;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .bookmark-path-icon {
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .bookmark-path-text {
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    /* 未收藏提示 */
+    .not-saved-hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    /* 加载状态 */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 0;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 13px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e5e7eb;
+      border-top-color: #6b7280;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 域名提示行 */
+    .domain-hint {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 6px;
+      margin-bottom: 2px;
+    }
+
+    .domain-hint strong {
+      color: #374151;
+    }
+
+    /* 书签条目中的具体 URL */
+    .bookmark-url {
+      font-size: 10px;
+      color: #9ca3af;
+      margin-top: 3px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="header-icon">🔖</span>
+    <span class="header-title">书签检测器</span>
+  </div>
+
+  <div class="content">
+    <div class="url-row">
+      <span class="url-label">当前页面</span>
+      <span class="url-text" id="currentUrl">加载中…</span>
+    </div>
+
+    <div id="statusArea">
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>检测中…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认删除对话框（动态插入） -->
+  <div id="confirmOverlay" class="confirm-overlay" style="display:none;">
+    <div class="confirm-box">
+      <div class="confirm-title">确认删除书签</div>
+      <div class="confirm-desc" id="confirmDesc"></div>
+      <div class="confirm-actions">
+        <button class="btn-cancel" id="btnCancel">取消</button>
+        <button class="btn-confirm-delete" id="btnConfirmDelete">删除</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="popup.js"></script>
+</body>
+</html>
